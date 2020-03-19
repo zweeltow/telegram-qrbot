@@ -32,10 +32,16 @@ def start_hello(message):
             message.chat.id, f'Привет, {message.from_user.first_name} {message.from_user.last_name}!\n\nЭтот бот создает QR-код. Просто нипиши ему что-нибудь. Или отправь стикер, чтобы получить информацию о нем.')
 
 
-def qr_gen(message):
+def qr_gen(message, handler):
     log(message)
+
+    if handler == "text":
+        loc = message.text
+    elif handler == "sticker":
+        loc = message.sticker
+
     try:
-        qr = qrcode.make(message.text)
+        qr = qrcode.make(loc)
         name_qrcode = random.randrange(99)
         qr.save(f"/var/www/pybot/qrbot/qr/{name_qrcode}.png")
         qrpic = open(f"/var/www/pybot/qrbot/qr/{name_qrcode}.png", 'rb')
@@ -46,35 +52,26 @@ def qr_gen(message):
     except Exception as error:
         bot.send_message(message.chat.id, "Произошла ошибка. :(")
         bot.send_message(config.logpm, f"Произошла ошибка!:\n{error}")
+        
+    return handler
 
 
 @bot.message_handler(content_types=['text'])
-def send(message):
+def send_txt(message):
     try:
-        qr_gen(message)
+        qr_gen(message, "text")
     except Exception as limit:
         bot.send_message(message.chat.id, f"Лимит: {limit}")
 
 
 @bot.message_handler(content_types=['sticker'])
-def qr_gen_sti(message):
-    log(message)
+def send_sti(message):
     try:
-        qr = qrcode.make(message.sticker)
-        name_qrcode = random.randrange(99)
-        qr.save(f"/var/www/pybot/qrbot/qr/{name_qrcode}.png")
-        qrpic = open(f"/var/www/pybot/qrbot/qr/{name_qrcode}.png", 'rb')
-        bot.send_chat_action(message.chat.id, 'upload_photo')
-        bot.send_photo(message.chat.id, qrpic,
-                       reply_to_message_id=message.message_id)
-        os.remove(f'/var/www/pybot/qrbot/qr/{name_qrcode}.png')
-    except Exception as error:
-        bot.send_message(message.chat.id, "Произошла ошибка!")
-        bot.send_message(config.logpm, f"Произошла ошибка!:\n{error}")
-
+        qr_gen(message, "sticker")
+    except Exception as limit:
+        bot.send_message(message.chat.id, f"Лимит: {limit}")
 
 try:
     bot.infinity_polling()
 except Exception as e:
     bot.send_message(config.logpm, f"Ошибка в запросе:\n{e}")
-    print(str(e))
