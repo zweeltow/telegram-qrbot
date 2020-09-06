@@ -1,14 +1,16 @@
-import telebot
-import logging
-import config
-import qrcode
 import random
+import logging
 import os
+
+import telebot
+import qrcode
+
+import config
 
 
 bot = telebot.TeleBot(config.TOKEN)
 telebot.logger.setLevel(logging.DEBUG)
-way_server = '/var/www/pybot/qrbot/qr'
+dir_pictures = '' # dir where pictures will be created
 
 
 def log(message, handler):
@@ -21,35 +23,25 @@ def log(message, handler):
         bot.send_message(config.OWNER, f'[<a href="tg://user?id={message.from_user.id}">{message.from_user.id}</a>] {message.from_user.first_name} "{message.from_user.username}" {message.from_user.last_name}:', 
                         parse_mode='html', disable_notification=True)
         bot.send_sticker(config.OWNER, message.sticker.file_id, disable_notification=True)
-    
-    return handler
 
 
 def qr_gen(message, handler):
     log(message, handler)
 
-    if handler == "text":
-        loc = message.text
-    elif handler == "sticker":
-        loc = message.sticker
-    elif handler == "location":
-        loc = f"geo:{message.location.latitude},{message.location.longitude}"
-
-    qr = qrcode.make(loc)
-    name_qrcode = random.randrange(99)
-    qr.save(f"{way_server}/{name_qrcode}.png")
-    qrpic = open(f"{way_server}/{name_qrcode}.png", 'rb')
+    qr = qrcode.make(handler)
+    name_qrcode_file = random.randrange(99)
+    qr.save(f"{dir_pictures}/{name_qrcode_file}.png")
+    qr_pic = open(f"{dir_pictures}/{name_qrcode_file}.png", 'rb')
     bot.send_chat_action(message.chat.id, 'upload_photo')
-    bot.send_photo(message.chat.id, qrpic,
+    bot.send_photo(message.chat.id, qr_pic,
                     reply_to_message_id=message.message_id)
-    os.remove(f'{way_server}/{name_qrcode}.png')
-        
-    return handler
+    os.remove(f'{dir_pictures}/{name_qrcode_file}.png')
 
 
 @bot.message_handler(commands=['start'])
 def start_hello(message):
-    log(message, "text")
+    handler = "text"
+    log(message, handler)
 
     if message.from_user.language_code == 'ru':
         bot.send_message(
@@ -61,7 +53,8 @@ def start_hello(message):
 
 @bot.message_handler(commands=['feedback'])
 def leave_feedback(message):
-    log(message, "text")
+    handler = "text"
+    log(message, handler)
 
     if message.from_user.language_code == 'ru':
         bot.send_message(message.chat.id, 
@@ -69,7 +62,7 @@ def leave_feedback(message):
         bot.register_next_step_handler(message, get_feedback)
     else:
         bot.send_message(message.chat.id, 
-                        "💬 Please tell me about your <b>suggestions</b> or <b>problems</b> that you have encountered using the bot.\n\nUse /cancel to cancel this command.\n\nIf you need a dialogue with the developer, you can PM: @zweel <i>(But I'm bad at English 🙂)</i>.", parse_mode='html')
+                        "💬 Please tell me about your <b>suggestions</b> or <b>problems</b> that you encountered using the bot.\n\nUse /cancel to cancel this command.\n\nIf you need a dialogue with the developer, you can PM: @zweel. <i>(But I'm bad at English 🙂)</i>.", parse_mode='html')
         bot.register_next_step_handler(message, get_feedback)
 
 def get_feedback(message):
@@ -77,7 +70,6 @@ def get_feedback(message):
         bot.send_message(message.chat.id, '👍')
 
     else:   
-
         bot.send_message(config.OWNER, f'uID: <a href="tg://user?id={message.from_user.id}">{message.from_user.id}</a>:', parse_mode='html', disable_notification=True)
         bot.forward_message(config.OWNER, message.chat.id, message.message_id)
         
@@ -89,7 +81,8 @@ def get_feedback(message):
 
 @bot.message_handler(commands=['help'])
 def msg_help(message):
-    log(message, 'text')
+    handler = "text"
+    log(message, handler)
 
     if message.from_user.language_code == 'ru':
         bot.send_message(message.chat.id, '🤖 Данный бот конвертирует <b>текст</b> и <b>геолокацию</b> в <a href="https://ru.wikipedia.org/wiki/QR-%D0%BA%D0%BE%D0%B4">QR-код</a>. \n\nБот написан на Python и использует библиотеки: \n• <a href="https://github.com/eternnoir/pyTelegramBotAPI">pyTelegramBotApi</a> — для общения с <a href="https://core.telegram.org/bots/api">Telegram Bot API</a>.\n• <a href="https://github.com/lincolnloop/python-qrcode">qrcode</a> — для создания QR-кодов.\n\n<b>Команды:</b>\n/feedback — команда на случай изъявления желания оставить пожелания разработчику или сообщить об ошибке.\n/about — получить информацию о боте.', parse_mode="html", disable_web_page_preview=True)
@@ -100,7 +93,8 @@ def msg_help(message):
 @bot.message_handler(content_types=['text'])
 def qr_text(message):
     try:
-        qr_gen(message, "text")
+        handler = "text"
+        qr_gen(message, handler)
     except Exception as error:
         bot.send_message(message.chat.id, f"😔 Error: {error}")
         bot.send_message(config.OWNER, f"❗️Произошла ошибка:\n{error}")
@@ -109,7 +103,8 @@ def qr_text(message):
 @bot.message_handler(content_types=['sticker'])
 def qr_sticker(message):
     try:
-        qr_gen(message, "sticker")
+        handler = 'sticker'
+        qr_gen(message, handler)
     except Exception as error:
         bot.send_message(message.chat.id, f"😔 Error: {error}")
         bot.send_message(config.OWNER, f"❗️Произошла ошибка:\n{error}")
@@ -118,7 +113,8 @@ def qr_sticker(message):
 @bot.message_handler(content_types=['location'])
 def qr_location(message):
     try:
-        qr_gen(message, "location")
+        handler = "location"
+        qr_gen(message, handler)
     except Exception as error:
         bot.send_message(message.chat.id, f"😔 Error: {error}")
         bot.send_message(config.OWNER, f"❗️Произошла ошибка:\n{error}")
@@ -129,6 +125,6 @@ def unknown(message):
 
 
 try:
-    bot.infinity_polling()
+    bot.polling(True)
 except Exception as e:
-    bot.send_message(config.OWNER, f"❗️Ошибка в запросе:\n{e}")
+    print(f"Ошибка в запросе:\n{e}")
